@@ -1,11 +1,13 @@
 package com.commonsware.empublite;
 
+import android.app.Fragment;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.support.v4.app.FragmentManager;
 import android.support.v4.view.ViewPager;
 import android.util.Log;
 import android.view.View;
@@ -18,7 +20,7 @@ import com.actionbarsherlock.view.MenuItem;
 import com.commonsware.cwac.wakeful.WakefulIntentService;
 
 
-public class EmPubLiteActivity extends SherlockFragmentActivity {
+public class EmPubLiteActivity extends SherlockFragmentActivity implements FragmentManager.OnBackStackChangedListener {
 
     private ViewPager pager = null;
 
@@ -37,10 +39,24 @@ public class EmPubLiteActivity extends SherlockFragmentActivity {
     private static final String PREF_KEEP_SCREEN_ON="keepScreenOn";
     private static final String HELP="help";
     private static final String ABOUT="about";
+    private static final String FILE_HELP=
+            "file:///android_asset/misc/help.html";
+    private static final String FILE_ABOUT=
+            "file:///android_asset/misc/about.html";
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        help = (SimpleContentFragment)getSupportFragmentManager().findFragmentByTag(HELP);
+        about = (SimpleContentFragment)getSupportFragmentManager().findFragmentByTag(ABOUT);
+
+        getSupportFragmentManager().addOnBackStackChangedListener(this);
+        if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+            openSidebar();
+        }
+
+
         super.onCreate(savedInstanceState);
         if (getSupportFragmentManager().findFragmentByTag(MODEL) == null) {
             model=new ModelFragment();
@@ -54,6 +70,9 @@ public class EmPubLiteActivity extends SherlockFragmentActivity {
         setContentView(R.layout.main);
         pager=(ViewPager)findViewById(R.id.pager);
         getSupportActionBar().setHomeButtonEnabled(true);
+
+        sidebar=findViewById(R.id.sidebar);
+        divider=findViewById(R.id.divider);
 
     }
 
@@ -136,17 +155,11 @@ public class EmPubLiteActivity extends SherlockFragmentActivity {
                 return(true);
 
             case com.commonsware.empublite.R.id.about:
-                Intent i=new Intent(this, SimpleContentActivity.class);
-                i.putExtra(SimpleContentActivity.EXTRA_FILE,
-                        "file:///android_asset/misc/about.html");
-                startActivity(i);
-            return(true);
+                showAbout();
+                return(true);
 
             case com.commonsware.empublite.R.id.help:
-                i=new Intent(this, SimpleContentActivity.class);
-                i.putExtra(SimpleContentActivity.EXTRA_FILE,
-                        "file:///android_asset/misc/help.html");
-                startActivity(i);
+                showHelp();
                 return(true);
 
             case R.id.settings:
@@ -154,7 +167,7 @@ public class EmPubLiteActivity extends SherlockFragmentActivity {
                 return(true);
 
             case R.id.notes:
-                i=new Intent(this, NoteActivity.class);
+                Intent i=new Intent(this, NoteActivity.class);
                 i.putExtra(NoteActivity.EXTRA_POSITION, pager.getCurrentItem());
                 startActivity(i);
                 return(true);
@@ -175,6 +188,7 @@ public class EmPubLiteActivity extends SherlockFragmentActivity {
     };
 
     void openSidebar() {
+        Log.d(this.toString(), "Open sidebar called!!!!");
         LinearLayout.LayoutParams p=
                 (LinearLayout.LayoutParams)sidebar.getLayoutParams();
         if (p.weight == 0) {
@@ -182,5 +196,53 @@ public class EmPubLiteActivity extends SherlockFragmentActivity {
             sidebar.setLayoutParams(p);
         }
         divider.setVisibility(View.VISIBLE);
+    }
+
+    void showAbout() {
+        Log.d(this.toString(), "Show about called!!!!!");
+        if (sidebar != null) {
+            openSidebar();
+            if (about == null) {
+                about=SimpleContentFragment.newInstance(FILE_ABOUT);
+            }
+            getSupportFragmentManager().beginTransaction()
+                    .addToBackStack(null)
+                    .replace(R.id.sidebar, about).commit();
+        }
+        else {
+            Log.d(this.toString(), "sidebar was NULL, opening activity instead");
+            Intent i=new Intent(this, SimpleContentActivity.class);
+            i.putExtra(SimpleContentActivity.EXTRA_FILE, FILE_ABOUT);
+            startActivity(i);
+        }
+    }
+    void showHelp() {
+        if (sidebar != null) {
+            openSidebar();
+            if (help == null) {
+                help=SimpleContentFragment.newInstance(FILE_HELP);
+            }
+            getSupportFragmentManager().beginTransaction()
+                    .addToBackStack(null)
+                    .replace(R.id.sidebar, help).commit();
+        }
+        else {
+            Intent i=new Intent(this, SimpleContentActivity.class);
+            i.putExtra(SimpleContentActivity.EXTRA_FILE, FILE_HELP);
+            startActivity(i);
+        }
+    }
+
+    @Override
+    public void onBackStackChanged() {
+        if (getSupportFragmentManager().getBackStackEntryCount() == 0) {
+            LinearLayout.LayoutParams p=
+                    (LinearLayout.LayoutParams)sidebar.getLayoutParams();
+            if (p.weight > 0) {
+                p.weight=0;
+                sidebar.setLayoutParams(p);
+                divider.setVisibility(View.GONE);
+            }
+        }
     }
 }
